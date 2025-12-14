@@ -1,0 +1,54 @@
+name: Deploy Vite App from Subfolder
+
+on:
+  push:
+    branches: ["main"]  # Убедись, что твоя ветка называется main
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          # Указываем путь к lock-файлу внутри папки front-react
+          cache-dependency-path: front-react/package-lock.json
+
+      - name: Install dependencies
+        # Заходим в папку front-react и устанавливаем зависимости там
+        run: cd front-react && npm ci
+
+      - name: Build
+        # Заходим в папку front-react и запускаем сборку там
+        run: cd front-react && npm run build
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          # Указываем, что папка dist появилась ВНУТРИ папки front-react
+          path: ./front-react/dist
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
